@@ -1,3 +1,4 @@
+import warnings
 from typing import List
 
 
@@ -11,15 +12,6 @@ class Clock:
 
     def current_time(self):
         return self.time
-
-
-class CPU:
-    def __init__(
-        self,
-        switch_time: int
-    ):
-        self.switch_time = switch_time
-        self.current_process = None
 
 
 class Process:
@@ -36,15 +28,41 @@ class Process:
         self.io_times = io_times
         self.service_time = sum(self.cpu_times)
         self.io_time = sum(self.io_times)
+        self.blocked: bool = False
         self.finish_time = None
 
     def __str__(self):
-        return(
+        return (
             f"Process number {self.process_num}\n"
             f"Arrives at {self.arrival_time}\n"
             f"Requires {self.service_time} units of processing in bursts of {self.cpu_times}\n"
             f"Requires {self.io_time} units of I/O in periods of {self.io_times}\n"
         )
+
+
+class CPU:
+    def __init__(
+        self,
+        switch_time: int,
+        initial_process: Process = None,
+    ):
+        self.context_switch_time = switch_time
+        self.current_process = initial_process
+        self.clock = Clock()
+
+    # process the current process for given units of time
+    # or until the current CPU burst is completed, whichever is shorter
+    def process(self, units: int):
+        if self.current_process.blocked:  # do not process a process waiting on I/O
+            warnings.warn(f"Attempted to run the blocked process \"{self.current_process.process_num}\" at time {self.clock.current_time()}")
+            return
+        if units >= self.current_process.cpu_times[0]:
+            self.clock.increment(self.current_process.cpu_times[0])  # advance clock
+            self.current_process.cpu_times.pop(0)  # process the process
+            self.current_process.blocked = True  # mark the process as waiting for I/O
+        else:
+            self.clock.increment(units)  # advance clock
+            self.current_process.cpu_times[0] -= units  # process the process
 
 
 if __name__ == '__main__':
@@ -64,8 +82,7 @@ if __name__ == '__main__':
             process = Process(process_num, arrival_time, cpu_times, io_times)
             processes.append(process)
 
-    cpu = CPU(switch_time)
-    clock = Clock()
+    cpu = CPU(switch_time, processes[0])
 
     for process in processes:
         print(process)
