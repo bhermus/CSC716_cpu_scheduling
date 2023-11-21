@@ -48,21 +48,56 @@ class CPU:
     ):
         self.context_switch_time = switch_time
         self.current_process = initial_process
-        self.clock = Clock()
 
     # process the current process for given units of time
-    # or until the current CPU burst is completed, whichever is shorter
-    def process(self, units: int):
+    # or until the current CPU burst is completed, whichever is shorter.
+    # returns the actual time units passed
+    def process(self, units: int) -> int:
         if self.current_process.blocked:  # do not process a process waiting on I/O
-            warnings.warn(f"Attempted to run the blocked process \"{self.current_process.process_num}\" at time {self.clock.current_time()}")
-            return
+            warnings.warn(f"Attempted to run the blocked process \"{self.current_process.process_num}\"")
+            return 0
         if units >= self.current_process.cpu_times[0]:
-            self.clock.increment(self.current_process.cpu_times[0])  # advance clock
+            units = self.current_process.cpu_times[0]
             self.current_process.cpu_times.pop(0)  # process the process
             self.current_process.blocked = True  # mark the process as waiting for I/O
+            return units
         else:
-            self.clock.increment(units)  # advance clock
             self.current_process.cpu_times[0] -= units  # process the process
+            return units
+
+
+class Scheduler:
+    def __init__(
+        self,
+        cpu: CPU = None,
+        process_queue: List[Process] = [],
+        io_processes: List[Process] = [],
+    ):
+        self.cpu = cpu  # the CPU object the scheduler will be managing
+        self.process_queue = process_queue  # all processes ready for the CPU
+        self.io_processes = io_processes  # all processes currently blocked and undergoing I/O operations
+        self.clock = Clock()  # keeps track of the current time passed
+
+    # performs I/O operations on all the io_processes for given units
+    def perform_io(self, units: int):
+        for process in self.io_processes:
+            process.io_times[0] -= units
+            if process.io_times[0] <= 0:  # i.e. I/O operations are completed
+                process.io_times.pop(0)
+                process.blocked = False
+                self.process_queue.append(process)
+                self.io_processes.remove(process)
+
+    def switch_process(self, process: Process):
+        units = self.cpu.context_switch_time
+        self.clock.increment(units)
+        self.perform_io(units)
+        self.cpu.current_process = process
+
+    # runs the simulation for given units of time
+    def run(self, units: int):
+        units = self.cpu.process(units)
+        self.perform_io(units)
 
 
 if __name__ == '__main__':
