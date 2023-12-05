@@ -52,11 +52,11 @@ class CPU:
     # process the current process for given units of time
     # or until the current CPU burst is completed, whichever is shorter.
     # returns the actual time units passed
-    def process(self, units: int) -> int:
+    def process(self, units: int = None) -> int:
         if self.current_process.blocked:  # do not process a process waiting on I/O
             warnings.warn(f"Attempted to run the blocked process \"{self.current_process.process_num}\"")
             return 0
-        if units >= self.current_process.cpu_times[0]:
+        if units is None or units >= self.current_process.cpu_times[0]:
             units = self.current_process.cpu_times[0]
             self.current_process.cpu_times.pop(0)  # process the process
             self.current_process.blocked = True  # mark the process as waiting for I/O
@@ -95,9 +95,20 @@ class Scheduler:
         self.cpu.current_process = process
 
     # runs the simulation for given units of time
-    def run(self, units: int):
+    def run(self, units: int = None):
         units = self.cpu.process(units)
         self.perform_io(units)
+        self.clock.increment(units)
+
+
+def first_come_first_serve(sch: Scheduler):
+    for process in sch.process_queue:
+        print(process)
+        if sch.clock.current_time() < process.arrival_time:
+            sch.run(process.arrival_time - sch.clock.current_time())  # fast-forward to arrival time if needed
+        if not sch.cpu.current_process:
+            sch.cpu.current_process = process
+        sch.run()
 
 
 if __name__ == '__main__':
@@ -118,6 +129,14 @@ if __name__ == '__main__':
             processes.append(process)
 
     cpu = CPU(switch_time, processes[0])
+    scheduler = Scheduler(cpu, processes)
+    first_come_first_serve(scheduler)
 
-    for process in processes:
-        print(process)
+    # for process in processes:
+    #     print(process)
+    # print(scheduler.cpu.current_process)
+    # print(scheduler.clock.current_time())
+    # print()
+    # scheduler.run(5)
+    # print(scheduler.cpu.current_process)
+    # print(scheduler.clock.current_time())
