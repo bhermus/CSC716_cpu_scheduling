@@ -102,12 +102,16 @@ class Scheduler:
 
 
 def first_come_first_serve(sch: Scheduler):
-    for process in sch.process_queue:
-        print(process)
-        if sch.clock.current_time() < process.arrival_time:
-            sch.run(process.arrival_time - sch.clock.current_time())  # fast-forward to arrival time if needed
-        if not sch.cpu.current_process:
-            sch.cpu.current_process = process
+    while sch.process_queue or sch.io_processes:  # while there are still processes
+        if sch.cpu.current_process.blocked:
+            for process in sch.process_queue:
+                if not process.blocked:
+                    sch.switch_process(process)  # switch to first not blocked process
+                    break
+        print(sch.cpu.current_process)
+        if sch.clock.current_time() < cpu.current_process.arrival_time:
+            sch.run(sch.cpu.current_process.arrival_time - sch.clock.current_time())  # fast-forward to arrival time if needed
+
         sch.run()
 
 
