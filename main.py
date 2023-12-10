@@ -1,5 +1,7 @@
 import warnings
-from typing import List
+from collections import defaultdict
+from enum import Enum
+from typing import List, Dict
 
 
 class Clock:
@@ -28,7 +30,7 @@ class Process:
         self.io_times = io_times
         self.service_time = sum(self.cpu_times)
         self.io_time = sum(self.io_times)
-        self.blocked: bool = False
+        self.blocked: bool = True  # Every process is considered blocked until it arrives
         self.finish_time = None
 
     def __str__(self):
@@ -40,6 +42,11 @@ class Process:
         )
 
 
+class State(Enum):
+    BUSY = 0
+    AVAILABLE = 1
+
+
 class CPU:
     def __init__(
         self,
@@ -48,6 +55,7 @@ class CPU:
     ):
         self.context_switch_time = switch_time
         self.current_process = initial_process
+        self.state = State(1)  # CPU is available by default
 
     # process the current process for given units of time
     # or until the current CPU burst is completed, whichever is shorter.
@@ -66,15 +74,31 @@ class CPU:
             return units
 
 
+class EventType(Enum):
+    WAITING = 0
+    READY = 1
+
+
+class Event:
+    def __init__(
+        self,
+        process: Process,
+    ):
+        self.process = process
+        # event occurring is the state the process is NOT currently in
+        self.state = EventType(1) if process.blocked else EventType(0)
+
+
 class Scheduler:
     def __init__(
         self,
         cpu: CPU = None,
-        process_queue: List[Process] = [],
+        event_queue: Dict[int, List[Event]] = defaultdict(list),
         io_processes: List[Process] = [],
     ):
         self.cpu = cpu  # the CPU object the scheduler will be managing
-        self.process_queue = process_queue  # all processes ready for the CPU
+        self.process_queue = []  # all processes ready for the CPU
+        self.event_queue: Dict[int, Event] = event_queue  # maps clock times to Event object relevant to that time
         self.io_processes = io_processes  # all processes currently blocked and undergoing I/O operations
         self.clock = Clock()  # keeps track of the current time passed
 
@@ -86,6 +110,7 @@ class Scheduler:
                 process.io_times.pop(0)
                 process.blocked = False
                 self.process_queue.append(process)
+                self.event_queue[self.clock.current_time()].append(Event(process))
                 self.io_processes.remove(process)
 
     def switch_process(self, process: Process):
@@ -116,6 +141,7 @@ def first_come_first_serve(sch: Scheduler):
 
 
 if __name__ == '__main__':
+    event_queue = defaultdict(list)
     with open("input.txt", "r") as file:
         num_processes, switch_time = (int(s) for s in file.readline().split(" "))
         processes = []
@@ -130,6 +156,7 @@ if __name__ == '__main__':
             cycle_num, cpu_time = [int(s) for s in file.readline().split(" ")]  # handle the last cpu burst
             cpu_times.append(cpu_time)
             process = Process(process_num, arrival_time, cpu_times, io_times)
+            event_queue[arrival_time].append(Event(process))
             processes.append(process)
 
     cpu = CPU(switch_time, processes[0])
