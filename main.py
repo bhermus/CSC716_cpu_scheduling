@@ -112,7 +112,6 @@ class Scheduler:
                 process.io_times.pop(0)
                 process.blocked = False
                 self.process_queue.append(process)
-                self.event_queue[self.clock.current_time()].append(Event(process))
                 self.io_processes.remove(process)
 
     def switch_process(self, process: Process):
@@ -142,30 +141,34 @@ class Scheduler:
 
             if event.state == EventType.READY:
                 event.process.blocked = False  # mark the process as ready
+                if self.cpu.state == State.AVAILABLE:  # if the CPU is available,
+                    self.cpu.state = State.BUSY
+                    self.switch_process(event.process)  # switch to the newly ready process
+                    self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(event.process))  # create a new Event at which the process will be WAITING
+                elif self.cpu.state == State.BUSY:
+                    self.process_queue.append(event.process)  # else add process to BACK of queue
             elif event.state == EventType.WAITING:
                 event.process.blocked = True  # mark the process as waiting
-                self.cpu.state = State.AVAILABLE  # free the CPU
                 self.io_processes.append(event.process)
-                self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be ready
-
-            if self.cpu.state == State.AVAILABLE:  # if the CPU is available,
-                if self.process_queue:  # if there are already waiting processes,
-                    self.switch_process(self.process_queue.pop(0))  # pop from the FRONT of the queue
-                elif event.state == EventType.READY:
-                    self.cpu.state = State.BUSY
-                    self.switch_process(event.process)  # switch to the new process
-                    self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(event.process))  # Create a new Event at which the new process will become blocked
-            else:
-                self.process_queue.append(event.process)  # else add process to BACK of queue
+                self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
+                if self.process_queue:  # if there are processes ready
+                    next_process = self.process_queue.pop(0)  # take process from FRONT of queue
+                    self.switch_process(next_process)
+                    self.event_queue[self.clock.current_time() + next_process.cpu_times[0]].append(Event(next_process))  # create a new Event at which the process will be WAITING
+                else:
+                    self.cpu.state = State.AVAILABLE
+                    self.cpu.current_process = None
 
             event_queue[event_time].pop(0)  # remove this Event
 
             if len(event_queue[event_time]) == 0:  # if there are no more Events at this time
                 event_queue.pop(event_time)
 
-            next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
-            self.run(next_event_time - event_time)
-
+            if self.event_queue:
+                next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
+                self.run(next_event_time - event_time)
+            else:  # this is the last event
+                pass
 
             # print(self.clock.current_time(), event.process.process_num, event.process.cpu_times, event.process.io_times)
 
@@ -191,6 +194,9 @@ if __name__ == '__main__':
 
     # for i, j in event_queue.items():
     #     print(i, j.process.process_num, j.state)
+
+    for process in processes:
+        print(process)
 
     cpu = CPU(switch_time)
     scheduler = Scheduler(cpu, event_queue)
