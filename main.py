@@ -61,6 +61,8 @@ class CPU:
     # or until the current CPU burst is completed, whichever is shorter.
     # returns the actual time units passed
     def process(self, units: int = None) -> int:
+        if self.current_process is None:  # if there is no current process, obviously don't run it
+            return units
         if self.current_process.blocked:  # do not process a process waiting on I/O
             warnings.warn(f"Attempted to run the blocked process \"{self.current_process.process_num}\"")
             return 0
@@ -114,30 +116,58 @@ class Scheduler:
                 self.io_processes.remove(process)
 
     def switch_process(self, process: Process):
-        units = self.cpu.context_switch_time
-        self.clock.increment(units)
-        self.perform_io(units)
+        # units = self.cpu.context_switch_time  # TODO reincorporate context switch time
+        # self.clock.increment(units)
+        # self.perform_io(units)
         self.cpu.current_process = process
 
     # runs the simulation for given units of time
     def run(self, units: int = None):
-        units = self.cpu.process(units)
+        self.cpu.process(units)
         self.perform_io(units)
         self.clock.increment(units)
 
+    def fcfs(self):
+        while self.event_queue:
+            to_print = ""
+            for et, events in event_queue.items():
+                for event in events:
+                    to_print += f"|{et} {event.state.name} {event.process.process_num}|"
+            print(self.clock.current_time(), to_print)
 
-def first_come_first_serve(sch: Scheduler):
-    while sch.process_queue or sch.io_processes:  # while there are still processes
-        if sch.cpu.current_process.blocked:
-            for process in sch.process_queue:
-                if not process.blocked:
-                    sch.switch_process(process)  # switch to first not blocked process
-                    break
-        print(sch.cpu.current_process)
-        if sch.clock.current_time() < cpu.current_process.arrival_time:
-            sch.run(sch.cpu.current_process.arrival_time - sch.clock.current_time())  # fast-forward to arrival time if needed
+            event_time = min(self.event_queue.keys())  # currently occurring event
+            event = self.event_queue[event_time][0]
 
-        sch.run()
+            # self.run(event_time)  # run simulation until the event
+
+            if event.state == EventType.READY:
+                event.process.blocked = False  # mark the process as ready
+            elif event.state == EventType.WAITING:
+                event.process.blocked = True  # mark the process as waiting
+                self.cpu.state = State.AVAILABLE  # free the CPU
+                self.io_processes.append(event.process)
+                self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be ready
+
+            if self.cpu.state == State.AVAILABLE:  # if the CPU is available,
+                if self.process_queue:  # if there are already waiting processes,
+                    self.switch_process(self.process_queue.pop(0))  # pop from the FRONT of the queue
+                elif event.state == EventType.READY:
+                    self.cpu.state = State.BUSY
+                    self.switch_process(event.process)  # switch to the new process
+                    self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(event.process))  # Create a new Event at which the new process will become blocked
+            else:
+                self.process_queue.append(event.process)  # else add process to BACK of queue
+
+            event_queue[event_time].pop(0)  # remove this Event
+
+            if len(event_queue[event_time]) == 0:  # if there are no more Events at this time
+                event_queue.pop(event_time)
+
+            next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
+            self.run(next_event_time - event_time)
+
+
+            # print(self.clock.current_time(), event.process.process_num, event.process.cpu_times, event.process.io_times)
 
 
 if __name__ == '__main__':
@@ -159,12 +189,15 @@ if __name__ == '__main__':
             event_queue[arrival_time].append(Event(process))
             processes.append(process)
 
-    cpu = CPU(switch_time, processes[0])
-    scheduler = Scheduler(cpu, processes)
-    first_come_first_serve(scheduler)
+    # for i, j in event_queue.items():
+    #     print(i, j.process.process_num, j.state)
 
-    # for process in processes:
-    #     print(process)
+    cpu = CPU(switch_time)
+    scheduler = Scheduler(cpu, event_queue)
+    scheduler.fcfs()
+
+    for process in processes:
+        print(process)
     # print(scheduler.cpu.current_process)
     # print(scheduler.clock.current_time())
     # print()
