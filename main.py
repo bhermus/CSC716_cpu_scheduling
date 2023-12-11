@@ -111,7 +111,6 @@ class Scheduler:
             if process.io_times[0] <= 0:  # i.e. I/O operations are completed
                 process.io_times.pop(0)
                 process.blocked = False
-                self.process_queue.append(process)
                 self.io_processes.remove(process)
 
     def switch_process(self, process: Process):
