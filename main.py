@@ -1,5 +1,6 @@
 import warnings
 from collections import defaultdict
+from contextlib import suppress
 from enum import Enum
 from typing import List, Dict
 
@@ -107,11 +108,12 @@ class Scheduler:
     # performs I/O operations on all the io_processes for given units
     def perform_io(self, units: int):
         for process in self.io_processes:
-            process.io_times[0] -= units
-            if process.io_times[0] <= 0:  # i.e. I/O operations are completed
-                process.io_times.pop(0)
-                process.blocked = False
-                self.io_processes.remove(process)
+            with suppress(IndexError):  # ignore index errors that get thrown if the process has no more I/O to run
+                process.io_times[0] -= units
+                if process.io_times[0] <= 0:  # i.e. I/O operations are completed
+                    process.io_times.pop(0)
+                    process.blocked = False
+                    self.io_processes.remove(process)
 
     def switch_process(self, process: Process):
         # units = self.cpu.context_switch_time  # TODO reincorporate context switch time
@@ -149,7 +151,8 @@ class Scheduler:
             elif event.state == EventType.WAITING:
                 event.process.blocked = True  # mark the process as waiting
                 self.io_processes.append(event.process)
-                self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
+                if event.process.io_times:  # if the process has I/O to handle
+                    self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
                 if self.process_queue:  # if there are processes ready
                     next_process = self.process_queue.pop(0)  # take process from FRONT of queue
                     self.switch_process(next_process)
