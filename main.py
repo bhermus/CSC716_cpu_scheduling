@@ -244,14 +244,14 @@ class Scheduler:
                     if next_process.cpu_times[0] > quantum:  # if it will take more than one quantum to complete processing
                         self.event_queue[self.clock.current_time() + quantum].append(Event(next_process, EventType.QUANTUM))  # create a new Event at which the QUANTUM ends
                     else:
-                        self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(next_process))  # create a new Event at which the process will be WAITING
+                        self.event_queue[self.clock.current_time() + next_process.cpu_times[0]].append(Event(next_process))  # create a new Event at which the process will be WAITING
                 else:  # no processes are waiting
                     if event.process.cpu_times[0] > quantum:
                         self.event_queue[self.clock.current_time() + quantum].append(Event(event.process, EventType.QUANTUM))  # create a new Event at which the QUANTUM ends
                     else:
                         self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(event.process))  # create a new Event at which the process will be WAITING
 
-            if event.state == EventType.READY:
+            elif event.state == EventType.READY:
                 event.process.blocked = False  # mark the process as ready
                 if self.cpu.state == State.AVAILABLE:  # if the CPU is available,
                     self.cpu.state = State.BUSY
@@ -271,7 +271,10 @@ class Scheduler:
                 if self.process_queue:  # if there are processes ready
                     next_process = self.process_queue.pop(0)  # take process from FRONT of queue
                     self.switch_process(next_process)
-                    self.event_queue[self.clock.current_time() + next_process.cpu_times[0]].append(Event(next_process))  # create a new Event at which the process will be WAITING
+                    if next_process.cpu_times[0] > quantum:  # if it will take more than one quantum to complete processing
+                        self.event_queue[self.clock.current_time() + quantum].append(Event(next_process, EventType.QUANTUM))  # create a new Event at which the QUANTUM ends
+                    else:
+                        self.event_queue[self.clock.current_time() + next_process.cpu_times[0]].append(Event(next_process))  # create a new Event at which the process will be WAITING
                 else:
                     self.cpu.state = State.AVAILABLE
                     self.cpu.current_process = None
@@ -315,7 +318,7 @@ if __name__ == '__main__':
 
     cpu = CPU(switch_time)
     scheduler = Scheduler(cpu, event_queue)
-    scheduler.sjn()
+    scheduler.rr()
 
     for process in processes:
         print(process)
