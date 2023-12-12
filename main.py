@@ -80,16 +80,21 @@ class CPU:
 class EventType(Enum):
     WAITING = 0
     READY = 1
+    QUANTUM = 2
 
 
 class Event:
     def __init__(
         self,
         process: Process,
+        state: EventType = None
     ):
         self.process = process
-        # event occurring is the state the process is NOT currently in
-        self.state = EventType(1) if process.blocked else EventType(0)
+        if state:
+            self.state = state
+        else:
+            # by default, event occurring is the state the process is NOT currently in
+            self.state = EventType(1) if process.blocked else EventType(0)
 
 
 class Scheduler:
@@ -196,6 +201,68 @@ class Scheduler:
                         if event.process.cpu_times[0] >= p.cpu_times[0]:
                             index += 1
                     self.process_queue.insert(index, event.process)  # insert process in queue AFTER all processes whose next CPU burst is shorter
+            elif event.state == EventType.WAITING:
+                event.process.blocked = True  # mark the process as waiting
+                self.io_processes.append(event.process)
+                if event.process.io_times:  # if the process has I/O to handle
+                    self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
+                if self.process_queue:  # if there are processes ready
+                    next_process = self.process_queue.pop(0)  # take process from FRONT of queue
+                    self.switch_process(next_process)
+                    self.event_queue[self.clock.current_time() + next_process.cpu_times[0]].append(Event(next_process))  # create a new Event at which the process will be WAITING
+                else:
+                    self.cpu.state = State.AVAILABLE
+                    self.cpu.current_process = None
+
+            event_queue[event_time].pop(0)  # remove this Event
+
+            if len(event_queue[event_time]) == 0:  # if there are no more Events at this time
+                event_queue.pop(event_time)
+
+            if self.event_queue:
+                next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
+                self.run(next_event_time - event_time)
+            else:  # this is the last event
+                pass
+
+    def rr(self, quantum: int = 10):
+        while self.event_queue:
+            to_print = ""
+            for et, events in event_queue.items():
+                for event in events:
+                    to_print += f"|{et} {event.state.name} {event.process.process_num}|"
+            print(self.clock.current_time(), to_print)
+
+            event_time = min(self.event_queue.keys())  # currently occurring event
+            event = self.event_queue[event_time][0]
+
+            if event.state == EventType.QUANTUM:
+                if self.process_queue:  # if there are processes ready
+                    self.process_queue.append(event.process)
+                    next_process = self.process_queue.pop(0)  # take process from FRONT of queue
+                    self.switch_process(next_process)
+                    if next_process.cpu_times[0] > quantum:  # if it will take more than one quantum to complete processing
+                        self.event_queue[self.clock.current_time() + quantum].append(Event(next_process, EventType.QUANTUM))  # create a new Event at which the QUANTUM ends
+                    else:
+                        self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(next_process))  # create a new Event at which the process will be WAITING
+                else:  # no processes are waiting
+                    if event.process.cpu_times[0] > quantum:
+                        self.event_queue[self.clock.current_time() + quantum].append(Event(event.process, EventType.QUANTUM))  # create a new Event at which the QUANTUM ends
+                    else:
+                        self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(event.process))  # create a new Event at which the process will be WAITING
+
+            if event.state == EventType.READY:
+                event.process.blocked = False  # mark the process as ready
+                if self.cpu.state == State.AVAILABLE:  # if the CPU is available,
+                    self.cpu.state = State.BUSY
+                    self.switch_process(event.process)  # switch to the newly ready process
+                    if event.process.cpu_times[0] > quantum:
+                        self.event_queue[self.clock.current_time() + quantum].append(Event(event.process, EventType.QUANTUM))  # create a new Event at which the QUANTUM ends
+                    else:
+                        self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(event.process))  # create a new Event at which the process will be WAITING
+                elif self.cpu.state == State.BUSY:
+                    self.process_queue.append(event.process)  # else add process to BACK of queue
+
             elif event.state == EventType.WAITING:
                 event.process.blocked = True  # mark the process as waiting
                 self.io_processes.append(event.process)
