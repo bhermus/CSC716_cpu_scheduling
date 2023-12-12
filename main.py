@@ -100,8 +100,8 @@ class Scheduler:
         io_processes: List[Process] = [],
     ):
         self.cpu = cpu  # the CPU object the scheduler will be managing
-        self.process_queue = []  # all processes ready for the CPU
-        self.event_queue: Dict[int, Event] = event_queue  # maps clock times to Event object relevant to that time
+        self.process_queue: List[Process] = []  # all processes ready for the CPU
+        self.event_queue: Dict[int, List[Event]] = event_queue  # maps clock times to Event object relevant to that time
         self.io_processes = io_processes  # all processes currently blocked and undergoing I/O operations
         self.clock = Clock()  # keeps track of the current time passed
 
@@ -137,8 +137,6 @@ class Scheduler:
 
             event_time = min(self.event_queue.keys())  # currently occurring event
             event = self.event_queue[event_time][0]
-
-            # self.run(event_time)  # run simulation until the event
 
             if event.state == EventType.READY:
                 event.process.blocked = False  # mark the process as ready
