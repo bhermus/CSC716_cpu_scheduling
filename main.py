@@ -6,8 +6,8 @@ from typing import List, Dict
 
 
 class Clock:
-    def __init__(self):
-        self.time = 0
+    def __init__(self, initial_time: int = 0):
+        self.time = initial_time
 
     def increment(self, units: int = 1):
         self.time += units
@@ -108,7 +108,7 @@ class Scheduler:
         self.process_queue: List[Process] = []  # all processes ready for the CPU
         self.event_queue: Dict[int, List[Event]] = event_queue  # maps clock times to Event object relevant to that time
         self.io_processes = io_processes  # all processes currently blocked and undergoing I/O operations
-        self.clock = Clock()  # keeps track of the current time passed
+        self.clock = Clock(min(self.event_queue.keys()))  # keeps track of the current time, initialized to first Event
 
     # performs I/O operations on all the io_processes for given units
     def perform_io(self, units: int):
