@@ -1,3 +1,4 @@
+import random
 import warnings
 from collections import defaultdict
 from contextlib import suppress
@@ -290,22 +291,50 @@ class Scheduler:
             else:  # this is the last event
                 pass
 
+def generate_input_file():
+    with open("input1.txt", "w") as file:
+        num_processes = 50
+        switch_time = 5
 
+        file.write(f"{num_processes} {switch_time}\n")
+
+        arrival_interval_mean = 50
+        for i in range(1, num_processes + 1):
+            arrival_time = round(random.expovariate(1 / arrival_interval_mean))
+            num_cycles = random.randint(10, 30)
+            if i == 1:
+                file.write(f"{i} {0} {num_cycles}\n")
+            else:
+                file.write(f"{i} {arrival_time} {num_cycles}\n")
+
+            for cycle in range(1, num_cycles):
+                cpu_time = random.randint(5, 400)
+                io_time = random.randint(30, 200)
+                file.write(f"{cycle} {cpu_time} {io_time}\n")
+            # Check if it's the last iteration before writing the last line
+            file.write(f"{num_cycles} {cpu_time}\n")
+            
 if __name__ == '__main__':
+    generate_input_file()
     event_queue = defaultdict(list)
-    with open("input.txt", "r") as file:
+    with open("input1.txt", "r") as file:
         num_processes, switch_time = (int(s) for s in file.readline().split(" "))
         processes = []
         for i in range(1, num_processes + 1):
             process_num, arrival_time, num_cycles = [int(s) for s in file.readline().split(" ")]
             cpu_times = []
             io_times = []
-            for j in range(1, num_cycles):
-                cycle_num, cpu_time, io_time = [int(s) for s in file.readline().split(" ")]
+            for j in range(num_cycles - 1):  # Adjusted loop range
+                cycle_num, cpu_time, io_time = [int(s) for s in file.readline().split()]
                 cpu_times.append(cpu_time)
                 io_times.append(io_time)
-            cycle_num, cpu_time = [int(s) for s in file.readline().split(" ")]  # handle the last cpu burst
-            cpu_times.append(cpu_time)
+            # Reading the last cycle differently if there are only two values
+            line = file.readline().split()
+            if len(line) == 2:  # Check for two values
+                cpu_times.append(int(line[1]))
+            else:
+                cycle_num, cpu_time, io_time = [int(s) for s in line]
+                cpu_times.append(cpu_time)
             process = Process(process_num, arrival_time, cpu_times, io_times)
             event_queue[arrival_time].append(Event(process))
             processes.append(process)
