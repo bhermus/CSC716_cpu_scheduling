@@ -172,6 +172,54 @@ class Scheduler:
 
             # print(self.clock.current_time(), event.process.process_num, event.process.cpu_times, event.process.io_times)
 
+    def sjn(self):
+        while self.event_queue:
+            to_print = ""
+            for et, events in event_queue.items():
+                for event in events:
+                    to_print += f"|{et} {event.state.name} {event.process.process_num}|"
+            print(self.clock.current_time(), to_print)
+
+            event_time = min(self.event_queue.keys())  # currently occurring event
+            event = self.event_queue[event_time][0]
+
+            if event.state == EventType.READY:
+                event.process.blocked = False  # mark the process as ready
+                if self.cpu.state == State.AVAILABLE:  # if the CPU is available,
+                    self.cpu.state = State.BUSY
+                    self.switch_process(event.process)  # switch to the newly ready process
+                    self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(event.process))  # create a new Event at which the process will be WAITING
+                elif self.cpu.state == State.BUSY:
+                    # see which processes in the queue (if any) have shorter job length
+                    index = 0
+                    for p in self.process_queue:
+                        if event.process.cpu_times[0] >= p.cpu_times[0]:
+                            index += 1
+                    self.process_queue.insert(index, event.process)  # insert process in queue AFTER all processes whose next CPU burst is shorter
+            elif event.state == EventType.WAITING:
+                event.process.blocked = True  # mark the process as waiting
+                self.io_processes.append(event.process)
+                if event.process.io_times:  # if the process has I/O to handle
+                    self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
+                if self.process_queue:  # if there are processes ready
+                    next_process = self.process_queue.pop(0)  # take process from FRONT of queue
+                    self.switch_process(next_process)
+                    self.event_queue[self.clock.current_time() + next_process.cpu_times[0]].append(Event(next_process))  # create a new Event at which the process will be WAITING
+                else:
+                    self.cpu.state = State.AVAILABLE
+                    self.cpu.current_process = None
+
+            event_queue[event_time].pop(0)  # remove this Event
+
+            if len(event_queue[event_time]) == 0:  # if there are no more Events at this time
+                event_queue.pop(event_time)
+
+            if self.event_queue:
+                next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
+                self.run(next_event_time - event_time)
+            else:  # this is the last event
+                pass
+
 
 if __name__ == '__main__':
     event_queue = defaultdict(list)
@@ -200,7 +248,7 @@ if __name__ == '__main__':
 
     cpu = CPU(switch_time)
     scheduler = Scheduler(cpu, event_queue)
-    scheduler.fcfs()
+    scheduler.sjn()
 
     for process in processes:
         print(process)
