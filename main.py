@@ -140,9 +140,19 @@ class Scheduler:
                 to_print += f"|{et} {event.state.name} {event.process.process_num}|"
         print(self.clock.current_time(), to_print)
 
+    def _show_output(self, total_busy_time: int):
+        # Calculate CPU utilization as a percentage
+        total_time = self.clock.current_time()
+        cpu_utilization = (total_busy_time / total_time) * 100
+
+        print(f"Total time: {total_time} units")
+        print(f"CPU Utilization: {cpu_utilization:.2f}%\n")
+
     def fcfs(self):
+        total_busy_time = 0  # Variable to track total CPU busy time
+
         while self.event_queue:
-            self._show_event_queue()
+            # self._show_event_queue()
 
             event_time = min(self.event_queue.keys())  # currently occurring event
             event = self.event_queue[event_time][0]
@@ -175,15 +185,20 @@ class Scheduler:
 
             if self.event_queue:
                 next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
-                self.run(next_event_time - event_time)
+                elapsed_time = next_event_time - event_time
+                self.run(elapsed_time)
+                if self.cpu.state == State.BUSY:
+                    total_busy_time += elapsed_time
             else:  # this is the last event
                 pass
 
-            # print(self.clock.current_time(), event.process.process_num, event.process.cpu_times, event.process.io_times)
+        self._show_output(total_busy_time)
 
     def sjn(self):
+        total_busy_time = 0  # Variable to track total CPU busy time
+
         while self.event_queue:
-            self._show_event_queue()
+            # self._show_event_queue()
 
             event_time = min(self.event_queue.keys())  # currently occurring event
             event = self.event_queue[event_time][0]
@@ -221,13 +236,20 @@ class Scheduler:
 
             if self.event_queue:
                 next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
-                self.run(next_event_time - event_time)
+                elapsed_time = next_event_time - event_time
+                self.run(elapsed_time)
+                if self.cpu.state == State.BUSY:
+                    total_busy_time += elapsed_time
             else:  # this is the last event
                 pass
 
+        self._show_output(total_busy_time)
+
     def rr(self, quantum: int = 10):
+        total_busy_time = 0  # Variable to track total CPU busy time
+
         while self.event_queue:
-            self._show_event_queue()
+            # self._show_event_queue()
 
             event_time = min(self.event_queue.keys())  # currently occurring event
             event = self.event_queue[event_time][0]
@@ -282,9 +304,14 @@ class Scheduler:
 
             if self.event_queue:
                 next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
-                self.run(next_event_time - event_time)
+                elapsed_time = next_event_time - event_time
+                self.run(elapsed_time)
+                if self.cpu.state == State.BUSY:
+                    total_busy_time += elapsed_time
             else:  # this is the last event
                 pass
+
+        self._show_output(total_busy_time)
 
 
 def generate_input_file():
