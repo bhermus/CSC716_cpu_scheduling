@@ -189,6 +189,11 @@ class Scheduler:
                 if next_process:
                     print(
                         f"At time {self.clock.current_time()}: Process {next_process.process_num} moves from READY to RUNNING")
+        elif event.state == EventType.QUANTUM and self.cpu.state == State.BUSY and next_process:
+            print(
+                f"At time {self.clock.current_time()}: Process {self.cpu.current_process.process_num} moves from RUNNING to READY")
+            print(
+                f"At time {self.clock.current_time()}: Process {next_process.process_num} moves from READY to RUNNING")
 
     def fcfs(self, verbose: bool = False):
         total_busy_time = 0  # Variable to track total CPU busy time
@@ -297,7 +302,7 @@ class Scheduler:
 
         self._show_output(total_busy_time, detailed=True)
 
-    def rr(self, quantum: int = 10):
+    def rr(self, quantum: int = 10, verbose: bool = False):
         total_busy_time = 0  # Variable to track total CPU busy time
 
         while self.event_queue:
@@ -305,6 +310,9 @@ class Scheduler:
 
             event_time = min(self.event_queue.keys())  # currently occurring event
             event = self.event_queue[event_time][0]
+
+            if verbose:
+                self._show_state_transitions(event, self.process_queue[0] if self.process_queue else None)
 
             if event.state == EventType.QUANTUM:
                 if self.process_queue:  # if there are processes ready
@@ -338,6 +346,8 @@ class Scheduler:
                 self.io_processes.append(event.process)
                 if event.process.io_times:  # if the process has I/O to handle
                     self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
+                else:  # if there is no I/O left, the process is completed
+                    [process for process in self.processes if process.process_num == event.process.process_num][0].finish_time = self.clock.current_time()
                 if self.process_queue:  # if there are processes ready
                     next_process = self.process_queue.pop(0)  # take process from FRONT of queue
                     self.switch_process(next_process)
