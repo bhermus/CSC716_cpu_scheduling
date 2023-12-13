@@ -133,13 +133,16 @@ class Scheduler:
         self.perform_io(units)
         self.clock.increment(units)
 
+    def _show_event_queue(self):
+        to_print = ""
+        for et, events in self.event_queue.items():
+            for event in events:
+                to_print += f"|{et} {event.state.name} {event.process.process_num}|"
+        print(self.clock.current_time(), to_print)
+
     def fcfs(self):
         while self.event_queue:
-            to_print = ""
-            for et, events in event_queue.items():
-                for event in events:
-                    to_print += f"|{et} {event.state.name} {event.process.process_num}|"
-            print(self.clock.current_time(), to_print)
+            self._show_event_queue()
 
             event_time = min(self.event_queue.keys())  # currently occurring event
             event = self.event_queue[event_time][0]
@@ -180,11 +183,7 @@ class Scheduler:
 
     def sjn(self):
         while self.event_queue:
-            to_print = ""
-            for et, events in event_queue.items():
-                for event in events:
-                    to_print += f"|{et} {event.state.name} {event.process.process_num}|"
-            print(self.clock.current_time(), to_print)
+            self._show_event_queue()
 
             event_time = min(self.event_queue.keys())  # currently occurring event
             event = self.event_queue[event_time][0]
@@ -228,11 +227,7 @@ class Scheduler:
 
     def rr(self, quantum: int = 10):
         while self.event_queue:
-            to_print = ""
-            for et, events in event_queue.items():
-                for event in events:
-                    to_print += f"|{et} {event.state.name} {event.process.process_num}|"
-            print(self.clock.current_time(), to_print)
+            self._show_event_queue()
 
             event_time = min(self.event_queue.keys())  # currently occurring event
             event = self.event_queue[event_time][0]
@@ -291,6 +286,7 @@ class Scheduler:
             else:  # this is the last event
                 pass
 
+
 def generate_input_file():
     with open("input1.txt", "w") as file:
         num_processes = 50
@@ -313,7 +309,8 @@ def generate_input_file():
                 file.write(f"{cycle} {cpu_time} {io_time}\n")
             # Check if it's the last iteration before writing the last line
             file.write(f"{num_cycles} {cpu_time}\n")
-            
+
+
 if __name__ == '__main__':
     generate_input_file()
     event_queue = defaultdict(list)
