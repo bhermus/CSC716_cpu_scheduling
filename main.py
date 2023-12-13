@@ -1,3 +1,4 @@
+import inspect
 import random
 import warnings
 from collections import defaultdict
@@ -146,6 +147,11 @@ class Scheduler:
         total_time = self.clock.current_time()
         cpu_utilization = (total_busy_time / total_time) * 100
 
+        # Get the name of the calling function
+        calling_function = inspect.stack()[1].function
+        calling_function = {"fcfs": "First Come First Serve", "sjn": "Shortest Job Next", "rr": "Round Robin"}[calling_function]
+
+        print(f"--- {calling_function} ---")
         print(f"Total time: {total_time} units")
         print(f"CPU Utilization: {cpu_utilization:.2f}%\n")
 
