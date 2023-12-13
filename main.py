@@ -2,6 +2,7 @@ import random
 import warnings
 from collections import defaultdict
 from contextlib import suppress
+from copy import deepcopy
 from enum import Enum
 from typing import List, Dict
 
@@ -316,7 +317,7 @@ class Scheduler:
 
 def generate_input_file():
     with open("input1.txt", "w") as file:
-        num_processes = 50
+        num_processes = 4
         switch_time = 5
 
         file.write(f"{num_processes} {switch_time}\n")
@@ -340,7 +341,7 @@ def generate_input_file():
 
 if __name__ == '__main__':
     generate_input_file()
-    event_queue = defaultdict(list)
+    EVENT_QUEUE = defaultdict(list)
     with open("input1.txt", "r") as file:
         num_processes, switch_time = (int(s) for s in file.readline().split(" "))
         processes = []
@@ -360,7 +361,7 @@ if __name__ == '__main__':
                 cycle_num, cpu_time, io_time = [int(s) for s in line]
                 cpu_times.append(cpu_time)
             process = Process(process_num, arrival_time, cpu_times, io_times)
-            event_queue[arrival_time].append(Event(process))
+            EVENT_QUEUE[arrival_time].append(Event(process))
             processes.append(process)
 
     # for i, j in event_queue.items():
@@ -370,6 +371,16 @@ if __name__ == '__main__':
         print(process)
 
     cpu = CPU(switch_time)
+
+    event_queue = deepcopy(EVENT_QUEUE)
+    scheduler = Scheduler(cpu, event_queue)
+    scheduler.fcfs()
+
+    event_queue = deepcopy(EVENT_QUEUE)
+    scheduler = Scheduler(cpu, event_queue)
+    scheduler.sjn()
+
+    event_queue = deepcopy(EVENT_QUEUE)
     scheduler = Scheduler(cpu, event_queue)
     scheduler.rr()
 
