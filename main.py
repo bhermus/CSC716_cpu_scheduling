@@ -34,7 +34,7 @@ class Process:
         self.io_times = io_times
         self.service_time = sum(self.cpu_times)
         self.io_time = sum(self.io_times)
-        self.blocked: bool = True  # Every process is considered blocked until it arrives
+        self.blocked: bool = None  # defaults to "None" to indicate NEW state
         self.finish_time = None
 
     def __str__(self):
@@ -168,7 +168,29 @@ class Scheduler:
                 print(f"  Finish time: {process.finish_time} units")
                 print()
 
-    def fcfs(self):
+    def _show_state_transitions(self, event: Event, next_process: Process = None):
+        if event.state == EventType.READY:
+            if event.process.blocked is None:
+                print(
+                    f"At time {self.clock.current_time()}: Process {event.process.process_num} moves from NEW to {'RUNNING' if self.cpu.state == State.AVAILABLE else 'READY'}")
+            elif self.cpu.state == State.BUSY and event.process == self.cpu.current_process:
+                print(
+                    f"At time {self.clock.current_time()}: Process {event.process.process_num} moves from RUNNING to WAITING")
+            else:
+                print(
+                    f"At time {self.clock.current_time()}: Process {event.process.process_num} moves from READY to RUNNING")
+        elif event.state == EventType.WAITING:
+            if len(event.process.io_times) == 0:
+                print(
+                    f"At time {self.clock.current_time()}: Process {event.process.process_num} moves from READY to COMPLETED")
+            else:
+                print(
+                    f"At time {self.clock.current_time()}: Process {event.process.process_num} moves from RUNNING to WAITING")
+                if next_process:
+                    print(
+                        f"At time {self.clock.current_time()}: Process {next_process.process_num} moves from READY to RUNNING")
+
+    def fcfs(self, verbose: bool = False):
         total_busy_time = 0  # Variable to track total CPU busy time
 
         while self.event_queue:
@@ -176,6 +198,9 @@ class Scheduler:
 
             event_time = min(self.event_queue.keys())  # currently occurring event
             event = self.event_queue[event_time][0]
+
+            if verbose:
+                self._show_state_transitions(event, self.process_queue[0] if self.process_queue else None)
 
             if event.state == EventType.READY:
                 event.process.blocked = False  # mark the process as ready
@@ -216,7 +241,7 @@ class Scheduler:
 
         self._show_output(total_busy_time, detailed=True)
 
-    def sjn(self):
+    def sjn(self, verbose: bool = False):
         total_busy_time = 0  # Variable to track total CPU busy time
 
         while self.event_queue:
@@ -224,6 +249,9 @@ class Scheduler:
 
             event_time = min(self.event_queue.keys())  # currently occurring event
             event = self.event_queue[event_time][0]
+
+            if verbose:
+                self._show_state_transitions(event, self.process_queue[0] if self.process_queue else None)
 
             if event.state == EventType.READY:
                 event.process.blocked = False  # mark the process as ready
@@ -243,6 +271,8 @@ class Scheduler:
                 self.io_processes.append(event.process)
                 if event.process.io_times:  # if the process has I/O to handle
                     self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
+                else:  # if there is no I/O left, the process is completed
+                    [process for process in self.processes if process.process_num == event.process.process_num][0].finish_time = self.clock.current_time()
                 if self.process_queue:  # if there are processes ready
                     next_process = self.process_queue.pop(0)  # take process from FRONT of queue
                     self.switch_process(next_process)
@@ -382,7 +412,7 @@ if __name__ == '__main__':
                 cycle_num, cpu_time, io_time = [int(s) for s in line]
                 cpu_times.append(cpu_time)
             process = Process(process_num, arrival_time, cpu_times, io_times)
-            EVENT_QUEUE[arrival_time].append(Event(process))
+            EVENT_QUEUE[arrival_time].append(Event(process, EventType.READY))
             processes.append(process)
 
     # for i, j in event_queue.items():
