@@ -105,11 +105,13 @@ class Scheduler:
         self,
         cpu: CPU = None,
         event_queue: Dict[int, List[Event]] = defaultdict(list),
+        procceses: List[Process] = [],
         io_processes: List[Process] = [],
     ):
         self.cpu = cpu  # the CPU object the scheduler will be managing
         self.process_queue: List[Process] = []  # all processes ready for the CPU
         self.event_queue: Dict[int, List[Event]] = event_queue  # maps clock times to Event object relevant to that time
+        self.processes = tuple(procceses)  # immutable tuple of processes that does not get consumed during runtime
         self.io_processes = io_processes  # all processes currently blocked and undergoing I/O operations
         self.clock = Clock(min(self.event_queue.keys()))  # keeps track of the current time, initialized to first Event
 
@@ -177,6 +179,8 @@ class Scheduler:
                 self.io_processes.append(event.process)
                 if event.process.io_times:  # if the process has I/O to handle
                     self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
+                else:  # if there is no I/O left, the process is completed
+                    [process for process in self.processes if process.process_num == event.process.process_num][0].finish_time = self.clock.current_time()
                 if self.process_queue:  # if there are processes ready
                     next_process = self.process_queue.pop(0)  # take process from FRONT of queue
                     self.switch_process(next_process)
@@ -379,15 +383,15 @@ if __name__ == '__main__':
     cpu = CPU(switch_time)
 
     event_queue = deepcopy(EVENT_QUEUE)
-    scheduler = Scheduler(cpu, event_queue)
+    scheduler = Scheduler(cpu, event_queue, processes)
     scheduler.fcfs()
 
     event_queue = deepcopy(EVENT_QUEUE)
-    scheduler = Scheduler(cpu, event_queue)
+    scheduler = Scheduler(cpu, event_queue, processes)
     scheduler.sjn()
 
     event_queue = deepcopy(EVENT_QUEUE)
-    scheduler = Scheduler(cpu, event_queue)
+    scheduler = Scheduler(cpu, event_queue, processes)
     scheduler.rr()
 
     for process in processes:
