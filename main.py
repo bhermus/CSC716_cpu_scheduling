@@ -144,7 +144,7 @@ class Scheduler:
                 to_print += f"|{et} {event.state.name} {event.process.process_num}|"
         print(self.clock.current_time(), to_print)
 
-    def _show_output(self, total_busy_time: int):
+    def _show_output(self, total_busy_time: int, detailed: bool = False):
         # Calculate CPU utilization as a percentage
         total_time = self.clock.current_time()
         cpu_utilization = (total_busy_time / total_time) * 100
@@ -156,6 +156,17 @@ class Scheduler:
         print(f"--- {calling_function} ---")
         print(f"Total time: {total_time} units")
         print(f"CPU Utilization: {cpu_utilization:.2f}%\n")
+
+        if detailed:
+            for process in self.processes:
+                turnaround_time = process.finish_time - process.arrival_time
+                print(f"Process {process.process_num}:")
+                print(f"  Arrival time: {process.arrival_time}")
+                print(f"  Service time: {process.service_time} units")
+                print(f"  I/O time: {process.io_time} units")
+                print(f"  Turnaround time: {turnaround_time} units")
+                print(f"  Finish time: {process.finish_time} units")
+                print()
 
     def fcfs(self):
         total_busy_time = 0  # Variable to track total CPU busy time
@@ -203,7 +214,7 @@ class Scheduler:
             else:  # this is the last event
                 pass
 
-        self._show_output(total_busy_time)
+        self._show_output(total_busy_time, detailed=True)
 
     def sjn(self):
         total_busy_time = 0  # Variable to track total CPU busy time
@@ -254,7 +265,7 @@ class Scheduler:
             else:  # this is the last event
                 pass
 
-        self._show_output(total_busy_time)
+        self._show_output(total_busy_time, detailed=True)
 
     def rr(self, quantum: int = 10):
         total_busy_time = 0  # Variable to track total CPU busy time
@@ -322,7 +333,7 @@ class Scheduler:
             else:  # this is the last event
                 pass
 
-        self._show_output(total_busy_time)
+        self._show_output(total_busy_time, detailed=True)
 
 
 def generate_input_file():
