@@ -438,22 +438,22 @@ def sim(args):
         if parsed_args.a == "RR":
             event_queue = deepcopy(EVENT_QUEUE)
             scheduler = Scheduler(cpu, event_queue, processes)
-            scheduler.rr()
+            scheduler.rr(detailed, verbose)
         if parsed_args.a == "SRTN":
             print()
         # Logic for handling -d, -v, and -a together
     else:
         event_queue = deepcopy(EVENT_QUEUE)
         scheduler = Scheduler(cpu, event_queue, processes)
-        scheduler.fcfs()
+        scheduler.fcfs(detailed, verbose)
 
         event_queue = deepcopy(EVENT_QUEUE)
         scheduler = Scheduler(cpu, event_queue, processes)
-        scheduler.sjn()
+        scheduler.sjn(detailed, verbose)
 
         event_queue = deepcopy(EVENT_QUEUE)
         scheduler = Scheduler(cpu, event_queue, processes)
-        scheduler.rr()
+        scheduler.rr(detailed, verbose)
 
         # Call all algorithms
 
