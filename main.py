@@ -1,5 +1,7 @@
+import argparse
 import inspect
 import random
+import sys
 import warnings
 from collections import defaultdict
 from contextlib import suppress
@@ -230,10 +232,10 @@ class Scheduler:
                     self.cpu.state = State.AVAILABLE
                     self.cpu.current_process = None
 
-            event_queue[event_time].pop(0)  # remove this Event
+            self.event_queue[event_time].pop(0)  # remove this Event
 
-            if len(event_queue[event_time]) == 0:  # if there are no more Events at this time
-                event_queue.pop(event_time)
+            if len(self.event_queue[event_time]) == 0:  # if there are no more Events at this time
+                self.event_queue.pop(event_time)
 
             if self.event_queue:
                 next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
@@ -286,10 +288,10 @@ class Scheduler:
                     self.cpu.state = State.AVAILABLE
                     self.cpu.current_process = None
 
-            event_queue[event_time].pop(0)  # remove this Event
+            self.event_queue[event_time].pop(0)  # remove this Event
 
-            if len(event_queue[event_time]) == 0:  # if there are no more Events at this time
-                event_queue.pop(event_time)
+            if len(self.event_queue[event_time]) == 0:  # if there are no more Events at this time
+                self.event_queue.pop(event_time)
 
             if self.event_queue:
                 next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
@@ -359,10 +361,10 @@ class Scheduler:
                     self.cpu.state = State.AVAILABLE
                     self.cpu.current_process = None
 
-            event_queue[event_time].pop(0)  # remove this Event
+            self.event_queue[event_time].pop(0)  # remove this Event
 
-            if len(event_queue[event_time]) == 0:  # if there are no more Events at this time
-                event_queue.pop(event_time)
+            if len(self.event_queue[event_time]) == 0:  # if there are no more Events at this time
+                self.event_queue.pop(event_time)
 
             if self.event_queue:
                 next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
@@ -376,32 +378,7 @@ class Scheduler:
         self._show_output(total_busy_time, detailed=detailed)
 
 
-def generate_input_file():
-    with open("input1.txt", "w") as file:
-        num_processes = 4
-        switch_time = 5
-
-        file.write(f"{num_processes} {switch_time}\n")
-
-        arrival_interval_mean = 50
-        for i in range(1, num_processes + 1):
-            arrival_time = round(random.expovariate(1 / arrival_interval_mean))
-            num_cycles = random.randint(10, 30)
-            if i == 1:
-                file.write(f"{i} {0} {num_cycles}\n")
-            else:
-                file.write(f"{i} {arrival_time} {num_cycles}\n")
-
-            for cycle in range(1, num_cycles):
-                cpu_time = random.randint(5, 400)
-                io_time = random.randint(30, 200)
-                file.write(f"{cycle} {cpu_time} {io_time}\n")
-            # Check if it's the last iteration before writing the last line
-            file.write(f"{num_cycles} {cpu_time}\n")
-
-
-if __name__ == '__main__':
-    generate_input_file()
+def sim(args):
     EVENT_QUEUE = defaultdict(list)
     with open("input1.txt", "r") as file:
         num_processes, switch_time = (int(s) for s in file.readline().split(" "))
@@ -414,7 +391,7 @@ if __name__ == '__main__':
                 cycle_num, cpu_time, io_time = [int(s) for s in file.readline().split()]
                 cpu_times.append(cpu_time)
                 io_times.append(io_time)
-            # Reading the last cycle differently if there are only two values
+                # Reading the last cycle differently if there are only two values
             line = file.readline().split()
             if len(line) == 2:  # Check for two values
                 cpu_times.append(int(line[1]))
@@ -422,34 +399,94 @@ if __name__ == '__main__':
                 cycle_num, cpu_time, io_time = [int(s) for s in line]
                 cpu_times.append(cpu_time)
             process = Process(process_num, arrival_time, cpu_times, io_times)
-            EVENT_QUEUE[arrival_time].append(Event(process, EventType.READY))
+            EVENT_QUEUE[arrival_time].append(Event(process))
             processes.append(process)
-
-    # for i, j in event_queue.items():
-    #     print(i, j.process.process_num, j.state)
-
-    for process in processes:
-        print(process)
-
     cpu = CPU(switch_time)
 
-    event_queue = deepcopy(EVENT_QUEUE)
-    scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.fcfs(detailed=False, verbose=False)
+    # Creating an ArgumentParser object
+    parser = argparse.ArgumentParser(description='Simulation Execution')
 
-    event_queue = deepcopy(EVENT_QUEUE)
-    scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.sjn(detailed=False, verbose=False)
+    # Adding arguments for -d, -v, and -a options with their respective descriptions
+    parser.add_argument('-d', action='store_true', help='Detailed information mode')
+    parser.add_argument('-v', action='store_true', help='Verbose mode')
+    parser.add_argument('-a', choices=['FCFS', 'SJN', 'RR', 'SRTN'], help='Specify an algorithm')
 
-    event_queue = deepcopy(EVENT_QUEUE)
-    scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.rr(detailed=False, verbose=False)
+    # Adding an argument for optional input, represented by '<input>'
+    parser.add_argument('input', nargs='?', default='', help='Input string')
 
-    for process in processes:
-        print(process)
-    # print(scheduler.cpu.current_process)
-    # print(scheduler.clock.current_time())
-    # print()
-    # scheduler.run(5)
-    # print(scheduler.cpu.current_process)
-    # print(scheduler.clock.current_time())
+    parsed_args = parser.parse_args(args)
+
+    if parsed_args.d:
+        detailed = True
+    else:
+        detailed = False
+
+    if parsed_args.v:
+        verbose = True
+    else:
+        verbose = False
+
+    if parsed_args.a:
+        if parsed_args.a == "FCFS":
+            event_queue = deepcopy(EVENT_QUEUE)
+            scheduler = Scheduler(cpu, event_queue, processes)
+            scheduler.fcfs(detailed, verbose)
+        if parsed_args.a == "SJN":
+            event_queue = deepcopy(EVENT_QUEUE)
+            scheduler = Scheduler(cpu, event_queue, processes)
+            scheduler.sjn(detailed, verbose)
+        if parsed_args.a == "RR":
+            event_queue = deepcopy(EVENT_QUEUE)
+            scheduler = Scheduler(cpu, event_queue, processes)
+            scheduler.rr()
+        if parsed_args.a == "SRTN":
+            print()
+        # Logic for handling -d, -v, and -a together
+    else:
+        event_queue = deepcopy(EVENT_QUEUE)
+        scheduler = Scheduler(cpu, event_queue, processes)
+        scheduler.fcfs()
+
+        event_queue = deepcopy(EVENT_QUEUE)
+        scheduler = Scheduler(cpu, event_queue, processes)
+        scheduler.sjn()
+
+        event_queue = deepcopy(EVENT_QUEUE)
+        scheduler = Scheduler(cpu, event_queue, processes)
+        scheduler.rr()
+
+        # Call all algorithms
+
+
+def generate_input_file():
+    with open("input1.txt", "w") as file:
+        num_processes = 50  # Define the number of processes
+        switch_time = 5  # Define the switch time
+
+        file.write(f"{num_processes} {switch_time}\n")  # Write the number of processes and switch time to the file
+
+        arrival_interval_mean = 50  # Define the mean arrival interval
+        mean_num_cpu_bursts = 20  # Define the average number of CPU bursts
+        cpu_time_range = (5, 500)  # Define the range for CPU burst time
+        io_time_range = (30, 1000)  # Define the range for IO burst time
+
+        for i in range(1, num_processes + 1):  # Loop through each process
+            arrival_time = round(random.expovariate(1 / arrival_interval_mean))  # Calculate arrival time
+            num_cpu_bursts = round(random.expovariate(1 / mean_num_cpu_bursts))  # Calculate number of CPU bursts
+            if i == 1:
+                file.write(f"{i} {0} {num_cpu_bursts}\n")  # Write process information to the file
+            else:
+                file.write(f"{i} {arrival_time} {num_cpu_bursts}\n")  # Write process information to the file
+
+            for cycle in range(1, num_cpu_bursts):  # Loop through each cycle of the process
+                cpu_time = random.randint(*cpu_time_range)  # Generate random CPU time
+                io_time = random.randint(*io_time_range)  # Generate random IO time
+                file.write(f"{cycle} {cpu_time} {io_time}\n")  # Write cycle information to the file
+            file.write(
+                f"{num_cpu_bursts} {random.randint(*cpu_time_range)}\n")  # Write the last line of cycle information
+
+
+if __name__ == '__main__':
+    generate_input_file()
+    sim(sys.argv[1:])
+
