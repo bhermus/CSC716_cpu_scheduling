@@ -195,7 +195,7 @@ class Scheduler:
             print(
                 f"At time {self.clock.current_time()}: Process {next_process.process_num} moves from READY to RUNNING")
 
-    def fcfs(self, verbose: bool = False):
+    def fcfs(self, detailed: bool = False, verbose: bool = False):
         total_busy_time = 0  # Variable to track total CPU busy time
 
         while self.event_queue:
@@ -244,9 +244,9 @@ class Scheduler:
             else:  # this is the last event
                 pass
 
-        self._show_output(total_busy_time, detailed=True)
+        self._show_output(total_busy_time, detailed=detailed)
 
-    def sjn(self, verbose: bool = False):
+    def sjn(self, detailed: bool = False, verbose: bool = False):
         total_busy_time = 0  # Variable to track total CPU busy time
 
         while self.event_queue:
@@ -300,9 +300,9 @@ class Scheduler:
             else:  # this is the last event
                 pass
 
-        self._show_output(total_busy_time, detailed=True)
+        self._show_output(total_busy_time, detailed=detailed)
 
-    def rr(self, quantum: int = 10, verbose: bool = False):
+    def rr(self, quantum: int = 10, detailed: bool = False, verbose: bool = False):
         total_busy_time = 0  # Variable to track total CPU busy time
 
         while self.event_queue:
@@ -373,7 +373,7 @@ class Scheduler:
             else:  # this is the last event
                 pass
 
-        self._show_output(total_busy_time, detailed=True)
+        self._show_output(total_busy_time, detailed=detailed)
 
 
 def generate_input_file():
@@ -435,15 +435,15 @@ if __name__ == '__main__':
 
     event_queue = deepcopy(EVENT_QUEUE)
     scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.fcfs()
+    scheduler.fcfs(detailed=False, verbose=False)
 
     event_queue = deepcopy(EVENT_QUEUE)
     scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.sjn()
+    scheduler.sjn(detailed=False, verbose=False)
 
     event_queue = deepcopy(EVENT_QUEUE)
     scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.rr()
+    scheduler.rr(detailed=False, verbose=False)
 
     for process in processes:
         print(process)
