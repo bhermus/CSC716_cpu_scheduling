@@ -230,10 +230,10 @@ class Scheduler:
                     self.cpu.state = State.AVAILABLE
                     self.cpu.current_process = None
 
-            event_queue[event_time].pop(0)  # remove this Event
+            self.event_queue[event_time].pop(0)  # remove this Event
 
-            if len(event_queue[event_time]) == 0:  # if there are no more Events at this time
-                event_queue.pop(event_time)
+            if len(self.event_queue[event_time]) == 0:  # if there are no more Events at this time
+                self.event_queue.pop(event_time)
 
             if self.event_queue:
                 next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
@@ -286,10 +286,10 @@ class Scheduler:
                     self.cpu.state = State.AVAILABLE
                     self.cpu.current_process = None
 
-            event_queue[event_time].pop(0)  # remove this Event
+            self.event_queue[event_time].pop(0)  # remove this Event
 
-            if len(event_queue[event_time]) == 0:  # if there are no more Events at this time
-                event_queue.pop(event_time)
+            if len(self.event_queue[event_time]) == 0:  # if there are no more Events at this time
+                self.event_queue.pop(event_time)
 
             if self.event_queue:
                 next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
@@ -359,10 +359,10 @@ class Scheduler:
                     self.cpu.state = State.AVAILABLE
                     self.cpu.current_process = None
 
-            event_queue[event_time].pop(0)  # remove this Event
+            self.event_queue[event_time].pop(0)  # remove this Event
 
-            if len(event_queue[event_time]) == 0:  # if there are no more Events at this time
-                event_queue.pop(event_time)
+            if len(self.event_queue[event_time]) == 0:  # if there are no more Events at this time
+                self.event_queue.pop(event_time)
 
             if self.event_queue:
                 next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
@@ -432,4 +432,4 @@ if __name__ == '__main__':
 
     event_queue = deepcopy(EVENT_QUEUE)
     scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.fcfs(detailed, verbose)
+    scheduler.rr(detailed=detailed, verbose=verbose)
