@@ -403,7 +403,7 @@ def generate_input_file():
 if __name__ == '__main__':
     generate_input_file()
     EVENT_QUEUE = defaultdict(list)
-    with open("input1.txt", "r") as file:
+    with open("input.txt", "r") as file:
         num_processes, switch_time = (int(s) for s in file.readline().split(" "))
         processes = []
         for i in range(1, num_processes + 1):
@@ -425,31 +425,11 @@ if __name__ == '__main__':
             EVENT_QUEUE[arrival_time].append(Event(process, EventType.READY))
             processes.append(process)
 
-    # for i, j in event_queue.items():
-    #     print(i, j.process.process_num, j.state)
-
-    for process in processes:
-        print(process)
+    detailed = True
+    verbose = True
 
     cpu = CPU(switch_time)
 
     event_queue = deepcopy(EVENT_QUEUE)
     scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.fcfs(detailed=False, verbose=False)
-
-    event_queue = deepcopy(EVENT_QUEUE)
-    scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.sjn(detailed=False, verbose=False)
-
-    event_queue = deepcopy(EVENT_QUEUE)
-    scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.rr(detailed=False, verbose=False)
-
-    for process in processes:
-        print(process)
-    # print(scheduler.cpu.current_process)
-    # print(scheduler.clock.current_time())
-    # print()
-    # scheduler.run(5)
-    # print(scheduler.cpu.current_process)
-    # print(scheduler.clock.current_time())
+    scheduler.fcfs(detailed, verbose)
