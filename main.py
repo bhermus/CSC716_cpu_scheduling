@@ -151,7 +151,12 @@ class Scheduler:
 
         # Get the name of the calling function
         calling_function = inspect.stack()[1].function
-        calling_function = {"fcfs": "First Come First Serve", "sjn": "Shortest Job Next", "rr": "Round Robin"}[calling_function]
+        calling_function = {
+            "fcfs": "First Come First Serve",
+            "sjn": "Shortest Job Next",
+            "rr": "Round Robin",
+            "srtn": "Shortest Remaining Time Next"
+        }[calling_function]
 
         print(f"--- {calling_function} ---")
         print(f"Total time: {total_time} units")
@@ -355,6 +360,79 @@ class Scheduler:
                         self.event_queue[self.clock.current_time() + quantum].append(Event(next_process, EventType.QUANTUM))  # create a new Event at which the QUANTUM ends
                     else:
                         self.event_queue[self.clock.current_time() + next_process.cpu_times[0]].append(Event(next_process))  # create a new Event at which the process will be WAITING
+                else:
+                    self.cpu.state = State.AVAILABLE
+                    self.cpu.current_process = None
+
+            self.event_queue[event_time].pop(0)  # remove this Event
+
+            if len(self.event_queue[event_time]) == 0:  # if there are no more Events at this time
+                self.event_queue.pop(event_time)
+
+            if self.event_queue:
+                next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
+                elapsed_time = next_event_time - event_time
+                self.run(elapsed_time)
+                if self.cpu.state == State.BUSY:
+                    total_busy_time += elapsed_time
+            else:  # this is the last event
+                pass
+
+        self._show_output(total_busy_time, detailed=detailed)
+
+    def srtn(self, detailed: bool = False, verbose: bool = False):
+        total_busy_time = 0  # Variable to track total CPU busy time
+
+        while self.event_queue:
+            # self._show_event_queue()
+
+            event_time = min(self.event_queue.keys())  # currently occurring event
+            event = self.event_queue[event_time][0]
+
+            if verbose:
+                self._show_state_transitions(event, self.process_queue[0] if self.process_queue else None)
+
+            if event.state == EventType.READY:
+                event.process.blocked = False  # mark the process as ready
+                if self.cpu.state == State.AVAILABLE:  # if the CPU is available,
+                    self.cpu.state = State.BUSY
+                    self.switch_process(event.process)  # switch to the newly ready process
+                    self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(event.process))  # create a new Event at which the process will be WAITING
+                elif self.cpu.state == State.BUSY:
+                    if event.process.cpu_times[0] < self.cpu.current_process.cpu_times[0]:  # if the newly ready process' burst is shorter than the current one
+                        # Find the associated WAITING Event for this process and remove it from the event_queue
+                        for future_event_time, future_events in self.event_queue.items():
+                            for i, future_event in enumerate(future_events):
+                                if future_event.process.process_num == self.cpu.current_process.process_num:
+                                    self.event_queue[future_event_time].pop(i)  # remove this Event
+                                    if len(self.event_queue[future_event_time]) == 0:  # if there are no more Events at this time
+                                        self.event_queue.pop(event_time)
+                        index = 0
+                        for p in self.process_queue:
+                            if self.cpu.current_process.cpu_times[0] >= p.cpu_times[0]:
+                                index += 1
+                        self.process_queue.insert(index, self.cpu.current_process)  # insert process in queue AFTER all processes whose next CPU burst is shorter
+                        self.switch_process(event.process)  # switch to newly ready process
+                        self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(event.process))  # create a new Event at which the process will be WAITING
+                    else:  # the current process is equal or shorter than the Event's process
+                        # see which processes in the queue (if any) have shorter job length
+                        index = 0
+                        for p in self.process_queue:
+                            if event.process.cpu_times[0] >= p.cpu_times[0]:
+                                index += 1
+                        self.process_queue.insert(index, event.process)  # insert process in queue AFTER all processes whose next CPU burst is shorter
+
+            elif event.state == EventType.WAITING:
+                event.process.blocked = True  # mark the process as waiting
+                self.io_processes.append(event.process)
+                if event.process.io_times:  # if the process has I/O to handle
+                    self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
+                else:  # if there is no I/O left, the process is completed
+                    [process for process in self.processes if process.process_num == event.process.process_num][0].finish_time = self.clock.current_time()
+                if self.process_queue:  # if there are processes ready
+                    next_process = self.process_queue.pop(0)  # take process from FRONT of queue
+                    self.switch_process(next_process)
+                    self.event_queue[self.clock.current_time() + next_process.cpu_times[0]].append(Event(next_process))  # create a new Event at which the process will be WAITING
                 else:
                     self.cpu.state = State.AVAILABLE
                     self.cpu.current_process = None
