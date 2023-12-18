@@ -72,7 +72,7 @@ class CPU:
             return 0
         if units is None or units >= self.current_process.cpu_times[0]:
             units = self.current_process.cpu_times[0]
-            self.current_process.cpu_times.pop(0)  # process the process
+            self.current_process.cpu_times[0] = 0  # process the process
             self.current_process.blocked = True  # mark the process as waiting for I/O
             return units
         else:
@@ -225,6 +225,7 @@ class Scheduler:
                     self.process_queue.append(event.process)  # else add process to BACK of queue
             elif event.state == EventType.WAITING:
                 event.process.blocked = True  # mark the process as waiting
+                event.process.cpu_times.pop(0)
                 self.io_processes.append(event.process)
                 if event.process.io_times:  # if the process has I/O to handle
                     self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
@@ -281,6 +282,7 @@ class Scheduler:
                     self.process_queue.insert(index, event.process)  # insert process in queue AFTER all processes whose next CPU burst is shorter
             elif event.state == EventType.WAITING:
                 event.process.blocked = True  # mark the process as waiting
+                event.process.cpu_times.pop(0)
                 self.io_processes.append(event.process)
                 if event.process.io_times:  # if the process has I/O to handle
                     self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
@@ -351,6 +353,7 @@ class Scheduler:
 
             elif event.state == EventType.WAITING:
                 event.process.blocked = True  # mark the process as waiting
+                event.process.cpu_times.pop(0)
                 self.io_processes.append(event.process)
                 if event.process.io_times:  # if the process has I/O to handle
                     self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
@@ -386,7 +389,7 @@ class Scheduler:
     def srtn(self, detailed: bool = False, verbose: bool = False):
         total_busy_time = 0  # Variable to track total CPU busy time
 
-        while self.event_queue:
+        while self.event_queue or self.process_queue:
             # self._show_event_queue()
 
             event_time = min(self.event_queue.keys())  # currently occurring event
@@ -402,14 +405,19 @@ class Scheduler:
                     self.switch_process(event.process)  # switch to the newly ready process
                     self.event_queue[self.clock.current_time() + event.process.cpu_times[0]].append(Event(event.process))  # create a new Event at which the process will be WAITING
                 elif self.cpu.state == State.BUSY:
-                    if event.process.cpu_times[0] < self.cpu.current_process.cpu_times[0]:  # if the newly ready process' burst is shorter than the current one
+                    if event.process.cpu_times and event.process.cpu_times[0] < self.cpu.current_process.cpu_times[0]:  # if the newly ready process' burst is shorter than the current one
                         # Find the associated WAITING Event for this process and remove it from the event_queue
+                        removed = False
                         for future_event_time, future_events in self.event_queue.items():
                             for i, future_event in enumerate(future_events):
                                 if future_event.process.process_num == self.cpu.current_process.process_num:
                                     self.event_queue[future_event_time].pop(i)  # remove this Event
                                     if len(self.event_queue[future_event_time]) == 0:  # if there are no more Events at this time
-                                        self.event_queue.pop(event_time)
+                                        self.event_queue.pop(future_event_time)
+                                    removed = True
+                                    break
+                            if removed:
+                                break
                         index = 0
                         for p in self.process_queue:
                             if self.cpu.current_process.cpu_times[0] >= p.cpu_times[0]:
@@ -427,6 +435,7 @@ class Scheduler:
 
             elif event.state == EventType.WAITING:
                 event.process.blocked = True  # mark the process as waiting
+                event.process.cpu_times.pop(0)
                 self.io_processes.append(event.process)
                 if event.process.io_times:  # if the process has I/O to handle
                     self.event_queue[self.clock.current_time() + event.process.io_times[0]].append(Event(event.process))  # create a new Event at which the process will be READY
@@ -445,6 +454,11 @@ class Scheduler:
             if len(self.event_queue[event_time]) == 0:  # if there are no more Events at this time
                 self.event_queue.pop(event_time)
 
+            if self.cpu.state == State.AVAILABLE and self.process_queue:  # if the CPU is free and there are ready processes
+                next_process = self.process_queue.pop(0)  # take process from FRONT of queue
+                self.switch_process(next_process)
+                self.event_queue[self.clock.current_time() + next_process.cpu_times[0]].append(Event(next_process))  # create a new Event at which the process will be WAITING
+
             if self.event_queue:
                 next_event_time = min(self.event_queue.keys())  # soonest (i.e. next) occurring event
                 elapsed_time = next_event_time - event_time
@@ -455,6 +469,9 @@ class Scheduler:
                 pass
 
         self._show_output(total_busy_time, detailed=detailed)
+        # After the simulation loop
+        for process in self.processes:
+            process.finish_time = self.clock.current_time()
 
 
 def generate_input_file():
@@ -513,4 +530,4 @@ if __name__ == '__main__':
 
     event_queue = deepcopy(EVENT_QUEUE)
     scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.rr(detailed=detailed, verbose=verbose)
+    scheduler.srtn(detailed=detailed, verbose=verbose)
