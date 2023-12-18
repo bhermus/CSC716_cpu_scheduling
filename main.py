@@ -531,7 +531,7 @@ if __name__ == '__main__':
     # Adding arguments for -d, -v, and -a options with their respective descriptions
     parser.add_argument('-d', action='store_true', help='Detailed information mode')
     parser.add_argument('-v', action='store_true', help='Verbose mode')
-    parser.add_argument('-a', choices=['FCFS', 'SJN', 'RR', 'SRTN'], help='Specify an algorithm')
+    parser.add_argument('-a', choices=['FCFS', 'SJN', 'RR10', 'RR50', 'RR100', 'SRTN'], help='Specify an algorithm')
 
     # Adding an argument for optional input, represented by '<input>'
     parser.add_argument('input', nargs='?', default='', help='Input string')
@@ -557,10 +557,18 @@ if __name__ == '__main__':
             event_queue = deepcopy(EVENT_QUEUE)
             scheduler = Scheduler(cpu, event_queue, processes)
             scheduler.sjn(detailed, verbose)
-        if parsed_args.a == "RR":
+        if parsed_args.a == "RR" or parsed_args.a == "RR10":
             event_queue = deepcopy(EVENT_QUEUE)
             scheduler = Scheduler(cpu, event_queue, processes)
             scheduler.rr(detailed=detailed, verbose=verbose)
+        elif parsed_args.a == "RR50":
+            event_queue = deepcopy(EVENT_QUEUE)
+            scheduler = Scheduler(cpu, event_queue, processes)
+            scheduler.rr(50, detailed, verbose)
+        elif parsed_args.a == "RR100":
+            event_queue = deepcopy(EVENT_QUEUE)
+            scheduler = Scheduler(cpu, event_queue, processes)
+            scheduler.rr(100, detailed, verbose)
         if parsed_args.a == "SRTN":
             event_queue = deepcopy(EVENT_QUEUE)
             scheduler = Scheduler(cpu, event_queue, processes)
