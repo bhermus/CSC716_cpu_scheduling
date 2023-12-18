@@ -1,3 +1,4 @@
+import argparse
 import inspect
 import random
 import warnings
@@ -501,7 +502,7 @@ def generate_input_file():
 if __name__ == '__main__':
     generate_input_file()
     EVENT_QUEUE = defaultdict(list)
-    with open("input.txt", "r") as file:
+    with open("input1.txt", "r") as file:
         num_processes, switch_time = (int(s) for s in file.readline().split(" "))
         processes = []
         for i in range(1, num_processes + 1):
@@ -512,7 +513,7 @@ if __name__ == '__main__':
                 cycle_num, cpu_time, io_time = [int(s) for s in file.readline().split()]
                 cpu_times.append(cpu_time)
                 io_times.append(io_time)
-            # Reading the last cycle differently if there are only two values
+                # Reading the last cycle differently if there are only two values
             line = file.readline().split()
             if len(line) == 2:  # Check for two values
                 cpu_times.append(int(line[1]))
@@ -522,12 +523,62 @@ if __name__ == '__main__':
             process = Process(process_num, arrival_time, cpu_times, io_times)
             EVENT_QUEUE[arrival_time].append(Event(process, EventType.READY))
             processes.append(process)
-
-    detailed = True
-    verbose = True
-
     cpu = CPU(switch_time)
 
-    event_queue = deepcopy(EVENT_QUEUE)
-    scheduler = Scheduler(cpu, event_queue, processes)
-    scheduler.srtn(detailed=detailed, verbose=verbose)
+    # Creating an ArgumentParser object
+    parser = argparse.ArgumentParser(description='Simulation Execution')
+
+    # Adding arguments for -d, -v, and -a options with their respective descriptions
+    parser.add_argument('-d', action='store_true', help='Detailed information mode')
+    parser.add_argument('-v', action='store_true', help='Verbose mode')
+    parser.add_argument('-a', choices=['FCFS', 'SJN', 'RR', 'SRTN'], help='Specify an algorithm')
+
+    # Adding an argument for optional input, represented by '<input>'
+    parser.add_argument('input', nargs='?', default='', help='Input string')
+
+    parsed_args = parser.parse_args()
+
+    if parsed_args.d:
+        detailed = True
+    else:
+        detailed = False
+
+    if parsed_args.v:
+        verbose = True
+    else:
+        verbose = False
+
+    if parsed_args.a:
+        if parsed_args.a == "FCFS":
+            event_queue = deepcopy(EVENT_QUEUE)
+            scheduler = Scheduler(cpu, event_queue, processes)
+            scheduler.fcfs(detailed, verbose)
+        if parsed_args.a == "SJN":
+            event_queue = deepcopy(EVENT_QUEUE)
+            scheduler = Scheduler(cpu, event_queue, processes)
+            scheduler.sjn(detailed, verbose)
+        if parsed_args.a == "RR":
+            event_queue = deepcopy(EVENT_QUEUE)
+            scheduler = Scheduler(cpu, event_queue, processes)
+            scheduler.rr(detailed=detailed, verbose=verbose)
+        if parsed_args.a == "SRTN":
+            event_queue = deepcopy(EVENT_QUEUE)
+            scheduler = Scheduler(cpu, event_queue, processes)
+            scheduler.srtn(detailed, verbose)
+
+    else:
+        event_queue = deepcopy(EVENT_QUEUE)
+        scheduler = Scheduler(cpu, event_queue, processes)
+        scheduler.fcfs(detailed, verbose)
+
+        event_queue = deepcopy(EVENT_QUEUE)
+        scheduler = Scheduler(cpu, event_queue, processes)
+        scheduler.sjn(detailed, verbose)
+
+        event_queue = deepcopy(EVENT_QUEUE)
+        scheduler = Scheduler(cpu, event_queue, processes)
+        scheduler.rr(detailed=detailed, verbose=verbose)
+
+        event_queue = deepcopy(EVENT_QUEUE)
+        scheduler = Scheduler(cpu, event_queue, processes)
+        scheduler.srtn(detailed, verbose)
