@@ -117,13 +117,16 @@ class Scheduler:
 
     # performs I/O operations on all the io_processes for given units
     def perform_io(self, units: int):
+        to_remove = []
         for process in self.io_processes:
             with suppress(IndexError):  # ignore index errors that get thrown if the process has no more I/O to run
                 process.io_times[0] -= units
                 if process.io_times[0] <= 0:  # i.e. I/O operations are completed
-                    process.io_times.pop(0)
-                    process.blocked = False
-                    self.io_processes.remove(process)
+                    to_remove.append(process)
+        for process in to_remove:
+                process.io_times.pop(0)
+                process.blocked = False
+                self.io_processes.remove(process)
 
     def switch_process(self, process: Process):
         # units = self.cpu.context_switch_time  # TODO reincorporate context switch time
